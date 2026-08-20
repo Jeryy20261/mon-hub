@@ -169,13 +169,23 @@
                 videoList.innerHTML = "";
                 imageList.innerHTML = "";
 
-                data.forEach(item => {
-                    if (item.category === "Video") {
-                        videoList.innerHTML += `<p><b>${item.name}</b><br><a href="${item.description}" target="_blank">Regarder la vidéo</a></p>`;
-                    } else if (item.category === "Image") {
-                        imageList.innerHTML += `<p><b>${item.name}</b><br><img src="${item.description}" width="150" style="border-radius:4px;"></p>`;
-                    }
-                });
+data.forEach(item => {
+    if (item.category === "Video") {
+        // On transforme le lien /view en /preview pour l'affichage dans un lecteur
+        let videoId = item.description.split('/d/')[1].split('/')[0];
+        videoList.innerHTML += `
+            <div style="margin-bottom:20px;">
+                <p><b>${item.name}</b></p>
+                <iframe src="https://drive.google.com/file/d/${videoId}/preview" width="100%" height="300" allow="autoplay"></iframe>
+            </div>`;
+    } else if (item.category === "Image") {
+        imageList.innerHTML += `
+            <div style="margin-bottom:20px;">
+                <p><b>${item.name}</b></p>
+                <img src="${item.description}" style="width:100%; border-radius:4px;">
+            </div>`;
+    }
+});
             } catch (err) {
                 console.error("Erreur de chargement des données:", err);
             }
