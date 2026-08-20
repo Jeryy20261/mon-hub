@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Hub</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; background: #f9f9f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #007BFF; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        #loading { display: none; color: #666; font-style: italic; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>Mon Hub</h1>
+
+    <!-- Formulaire d'ajout -->
+    <div class="card">
+        <h3>Ajouter un élément</h3>
+        <form id="hubForm">
+            <label>Nom :</label>
+            <input type="text" id="name" required>
+
+            <label>Catégorie :</label>
+            <select id="category">
+                <option value="Idée">Idée</option>
+                <option value="Tâche">Tâche</option>
+                <option value="Ressource">Ressource</option>
+            </select>
+
+            <label>Description :</label>
+            <textarea id="description" rows="3" required></textarea>
+
+            <button type="submit" id="submitBtn">Envoyer</button>
+            <span id="loading">Enregistrement en cours...</span>
+        </form>
+    </div>
+
+    <!-- Tableau d'affichage -->
+    <div class="card">
+        <h3>Historique</h3>
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Nom</th>
+                    <th>Catégorie</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Les données s'afficheront ici -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // METTEZ VOTRE URL DE WEB APP GOOGLE APPS SCRIPT ICI (finissant par /exec) :
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwubjthtrcSm7YZhhKLr99-61ePHycBxJOhycum7SiTEjBMpP7i_P1x-WMk-ric0vvo/exec";
+
+        const form = document.getElementById('hubForm');
+        const loading = document.getElementById('loading');
+        const tableBody = document.querySelector('#dataTable tbody');
+
+        // Charger les données au démarrage (via GET)
+        async function loadData() {
+            try {
+                const response = await fetch(WEB_APP_URL);
+                const data = await response.json();
+                
+                tableBody.innerHTML = ""; // Vider le tableau
+                
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${new Date(row.timestamp).toLocaleString()}</td>
+                        <td>${escapeHtml(row.name)}</td>
+                        <td>${escapeHtml(row.category)}</td>
+                        <td>${escapeHtml(row.description)}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error("Erreur lors du chargement des données :", error);
+            }
+        }
+
+        // Gérer l'envoi du formulaire (via POST)
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loading.style.display = 'inline';
+
+            const formData = {
+                name: document.getElementById('name').value,
+                category: document.getElementById('category').value,
+                description: document.getElementById('description').value
+            };
+
+            try {
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                form.reset();
+                alert("Ajouté avec succès !");
+                setTimeout(loadData, 1500); // Actualiser le tableau après 1.5s
+            } catch (error) {
+                alert("Erreur lors de l'envoi.");
+                console.error(error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Sécurité de base pour nettoyer le texte affiché
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // Lancer le chargement au chargement de la page
+        loadData();
+    </script>
+</body>
+</html>
