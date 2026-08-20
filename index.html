@@ -3,132 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mon Hub</title>
+    <title>Mon Hub Sécurisé</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; background: #f9f9f9; }
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #f9f9f9; color: #333; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background: #007BFF; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        input { width: 100%; padding: 10px; margin: 8px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #007BFF; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; }
         button:hover { background: #0056b3; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        #loading { display: none; color: #666; font-style: italic; margin-left: 10px; }
+        .msg { margin-top: 10px; font-weight: bold; text-align: center; }
+        #hubContent { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>Mon Hub</h1>
+    <!-- SECTION CONNEXION / INSCRIPTION (Visible par défaut) -->
+    <div id="authSection">
+        <div class="card">
+            <h2>Connexion</h2>
+            <form id="loginForm">
+                <label>Identifiant :</label>
+                <input type="text" id="loginUser" required>
+                <label>Mot de passe :</label>
+                <input type="password" id="loginPass" required>
+                <button type="submit">Se connecter</button>
+            </form>
+            <div id="loginMsg" class="msg"></div>
+        </div>
 
-    <!-- Formulaire d'ajout -->
-    <div class="card">
-        <h3>Ajouter un élément</h3>
-        <form id="hubForm">
-            <label>Nom :</label>
-            <input type="text" id="name" required>
-
-            <label>Catégorie :</label>
-            <select id="category">
-                <option value="Idée">Idée</option>
-                <option value="Tâche">Tâche</option>
-                <option value="Ressource">Ressource</option>
-            </select>
-
-            <label>Description :</label>
-            <textarea id="description" rows="3" required></textarea>
-
-            <button type="submit" id="submitBtn">Envoyer</button>
-            <span id="loading">Enregistrement en cours...</span>
-        </form>
+        <div class="card">
+            <h2>Inscription</h2>
+            <form id="registerForm">
+                <label>Choisir un identifiant :</label>
+                <input type="text" id="regUser" required>
+                <label>Choisir un mot de passe :</label>
+                <input type="password" id="regPass" required>
+                <button type="submit">S'inscrire</button>
+            </form>
+            <div id="regMsg" class="msg"></div>
+        </div>
     </div>
 
-    <!-- Tableau d'affichage -->
-    <div class="card">
-        <h3>Historique</h3>
-        <table id="dataTable">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Nom</th>
-                    <th>Catégorie</th>
-                    <th>Description</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Les données s'afficheront ici -->
-            </tbody>
-        </table>
+    <!-- SECTION DU HUB (Cachée tant qu'on n'est pas connecté) -->
+    <div id="hubContent" class="card">
+        <h1>Bienvenue sur votre Hub !</h1>
+        <p>Vous êtes connecté avec succès.</p>
+        <button id="logoutBtn" style="background: #dc3545;">Se déconnecter</button>
     </div>
 
     <script>
-        // METTEZ VOTRE URL DE WEB APP GOOGLE APPS SCRIPT ICI (finissant par /exec) :
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwubjthtrcSm7YZhhKLr99-61ePHycBxJOhycum7SiTEjBMpP7i_P1x-WMk-ric0vvo/exec";
+        // METTEZ VOTRE URL DE WEB APP GOOGLE APPS SCRIPT ICI :
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwljH1v8_0W6sr-Vxo5dmlVd0ua-2R2ajyPMK1XdqbD-wLbC_xJMWbtkkjvwpz-lTTs/exec";
 
-        const form = document.getElementById('hubForm');
-        const loading = document.getElementById('loading');
-        const tableBody = document.querySelector('#dataTable tbody');
-
-        // Charger les données au démarrage (via GET)
-        async function loadData() {
-            try {
-                const response = await fetch(WEB_APP_URL);
-                const data = await response.json();
-                
-                tableBody.innerHTML = ""; // Vider le tableau
-                
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${new Date(row.timestamp).toLocaleString()}</td>
-                        <td>${escapeHtml(row.name)}</td>
-                        <td>${escapeHtml(row.category)}</td>
-                        <td>${escapeHtml(row.description)}</td>
-                    `;
-                    tableBody.appendChild(tr);
-                });
-            } catch (error) {
-                console.error("Erreur lors du chargement des données :", error);
-            }
+        // Fonction pour hacher le mot de passe en SHA-256 (Sécurité)
+        async function hashPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // Gérer l'envoi du formulaire (via POST)
-        form.addEventListener('submit', async (e) => {
+        // Gestion de l'Inscription
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            loading.style.display = 'inline';
+            const username = document.getElementById('regUser').value;
+            const rawPass = document.getElementById('regPass').value;
+            const msgDiv = document.getElementById('regMsg');
 
-            const formData = {
-                name: document.getElementById('name').value,
-                category: document.getElementById('category').value,
-                description: document.getElementById('description').value
-            };
+            msgDiv.style.color = "#666";
+            msgDiv.innerText = "Traitement en cours...";
+
+            const passwordHash = await hashPassword(rawPass);
 
             try {
-                await fetch(WEB_APP_URL, {
+                const response = await fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify({ action: "register", username, passwordHash })
                 });
-
-                form.reset();
-                alert("Ajouté avec succès !");
-                setTimeout(loadData, 1500); // Actualiser le tableau après 1.5s
-            } catch (error) {
-                alert("Erreur lors de l'envoi.");
-                console.error(error);
-            } finally {
-                loading.style.display = 'none';
+                const result = await response.json();
+                
+                msgDiv.style.color = result.result === "success" ? "green" : "red";
+                msgDiv.innerText = result.message;
+                if(result.result === "success") document.getElementById('registerForm').reset();
+            } catch (err) {
+                msgDiv.style.color = "red";
+                msgDiv.innerText = "Erreur de connexion au serveur.";
             }
         });
 
-        // Sécurité de base pour nettoyer le texte affiché
-        function escapeHtml(text) {
-            if (!text) return "";
-            return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
+        // Gestion de la Connexion
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUser').value;
+            const rawPass = document.getElementById('loginPass').value;
+            const msgDiv = document.getElementById('loginMsg');
 
-        // Lancer le chargement au chargement de la page
-        loadData();
+            msgDiv.style.color = "#666";
+            msgDiv.innerText = "Vérification...";
+
+            const passwordHash = await hashPassword(rawPass);
+
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "login", username, passwordHash })
+                });
+                const result = await response.json();
+                
+                if (result.result === "success") {
+                    // Masquer l'auth et afficher le Hub
+                    document.getElementById('authSection').style.display = 'none';
+                    document.getElementById('hubContent').style.display = 'block';
+                } else {
+                    msgDiv.style.color = "red";
+                    msgDiv.innerText = result.message;
+                }
+            } catch (err) {
+                msgDiv.style.color = "red";
+                msgDiv.innerText = "Erreur de connexion au serveur.";
+            }
+        });
+
+        // Déconnexion simple
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            document.getElementById('hubContent').style.display = 'none';
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('loginForm').reset();
+            document.getElementById('loginMsg').innerText = "";
+        });
     </script>
 </body>
 </html>
