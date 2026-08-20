@@ -5,18 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Hub Sécurisé</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #f9f9f9; color: #333; }
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f9f9f9; color: #333; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input { width: 100%; padding: 10px; margin: 8px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         button { background: #007BFF; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; }
         button:hover { background: #0056b3; }
         .msg { margin-top: 10px; font-weight: bold; text-align: center; }
         #hubContent { display: none; }
+        nav button { width: auto; margin-right: 5px; background: #6c757d; }
+        nav button:hover { background: #5a6268; }
     </style>
 </head>
 <body>
 
-    <!-- SECTION CONNEXION / INSCRIPTION (Visible par défaut) -->
+    <!-- SECTION CONNEXION / INSCRIPTION -->
     <div id="authSection">
         <div class="card">
             <h2>Connexion</h2>
@@ -43,18 +45,43 @@
         </div>
     </div>
 
-    <!-- SECTION DU HUB (Cachée tant qu'on n'est pas connecté) -->
+    <!-- SECTION DU HUB (Affichée après connexion validée) -->
     <div id="hubContent" class="card">
         <h1>Bienvenue sur votre Hub !</h1>
-        <p>Vous êtes connecté avec succès.</p>
+        
+        <!-- Menu de navigation dynamique -->
+        <nav>
+            <button onclick="showPage('home')">Accueil</button>
+            <button onclick="showPage('videos')">Vidéos</button>
+            <button onclick="showPage('images')">Images</button>
+        </nav>
+        <hr>
+
+        <!-- Les différentes "pages" de votre Hub -->
+        <div id="home" class="page">
+            <h3>Accueil</h3>
+            <p>Sélectionnez une catégorie dans le menu ci-dessus pour naviguer sans recharger la page.</p>
+        </div>
+
+        <div id="videos" class="page" style="display:none;">
+            <h3>Section Vidéos</h3>
+            <div id="videoList">Chargement des vidéos...</div>
+        </div>
+
+        <div id="images" class="page" style="display:none;">
+            <h3>Section Images</h3>
+            <div id="imageList">Chargement des images...</div>
+        </div>
+
+        <br><hr>
         <button id="logoutBtn" style="background: #dc3545;">Se déconnecter</button>
     </div>
 
     <script>
         // METTEZ VOTRE URL DE WEB APP GOOGLE APPS SCRIPT ICI :
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwljH1v8_0W6sr-Vxo5dmlVd0ua-2R2ajyPMK1XdqbD-wLbC_xJMWbtkkjvwpz-lTTs/exec";
+        const WEB_APP_URL = "VOTRE_URL_EXEC_COPIEE_PRECEDEMMENT";
 
-        // Fonction pour hacher le mot de passe en SHA-256 (Sécurité)
+        // Fonction pour hacher le mot de passe en SHA-256
         async function hashPassword(password) {
             const msgBuffer = new TextEncoder().encode(password);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -62,7 +89,7 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // Gestion de l'Inscription
+        // Inscription
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('regUser').value;
@@ -71,7 +98,6 @@
 
             msgDiv.style.color = "#666";
             msgDiv.innerText = "Traitement en cours...";
-
             const passwordHash = await hashPassword(rawPass);
 
             try {
@@ -80,7 +106,6 @@
                     body: JSON.stringify({ action: "register", username, passwordHash })
                 });
                 const result = await response.json();
-                
                 msgDiv.style.color = result.result === "success" ? "green" : "red";
                 msgDiv.innerText = result.message;
                 if(result.result === "success") document.getElementById('registerForm').reset();
@@ -90,7 +115,7 @@
             }
         });
 
-        // Gestion de la Connexion
+        // Connexion
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('loginUser').value;
@@ -99,7 +124,6 @@
 
             msgDiv.style.color = "#666";
             msgDiv.innerText = "Vérification...";
-
             const passwordHash = await hashPassword(rawPass);
 
             try {
@@ -110,7 +134,6 @@
                 const result = await response.json();
                 
                 if (result.result === "success") {
-                    // Masquer l'auth et afficher le Hub
                     document.getElementById('authSection').style.display = 'none';
                     document.getElementById('hubContent').style.display = 'block';
                 } else {
@@ -123,7 +146,42 @@
             }
         });
 
-        // Déconnexion simple
+        // Navigation dynamique entre les pages sans recharger
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById(pageId).style.display = 'block';
+            
+            // Si on clique sur Vidéos ou Images, on charge les données du Sheet
+            if(pageId === 'videos' || pageId === 'images') {
+                loadHubData();
+            }
+        }
+
+        // Chargement des données du Google Sheet
+        async function loadHubData() {
+            try {
+                const response = await fetch(WEB_APP_URL);
+                const data = await response.json();
+                
+                const videoList = document.getElementById('videoList');
+                const imageList = document.getElementById('imageList');
+                
+                videoList.innerHTML = "";
+                imageList.innerHTML = "";
+
+                data.forEach(item => {
+                    if (item.category === "Video") {
+                        videoList.innerHTML += `<p><b>${item.name}</b><br><a href="${item.description}" target="_blank">Regarder la vidéo</a></p>`;
+                    } else if (item.category === "Image") {
+                        imageList.innerHTML += `<p><b>${item.name}</b><br><img src="${item.description}" width="150" style="border-radius:4px;"></p>`;
+                    }
+                });
+            } catch (err) {
+                console.error("Erreur de chargement des données:", err);
+            }
+        }
+
+        // Déconnexion
         document.getElementById('logoutBtn').addEventListener('click', () => {
             document.getElementById('hubContent').style.display = 'none';
             document.getElementById('authSection').style.display = 'block';
