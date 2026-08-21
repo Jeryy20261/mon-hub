@@ -84,19 +84,28 @@
             if(id === 'videos' || id === 'images') loadHubData();
         }
 
-        async function loadHubData() {
+async function loadHubData() {
             const vList = document.getElementById('videoList');
             const iList = document.getElementById('imageList');
             try {
-                // Utilisation de POST pour récupérer les données sans blocage CORS
                 const res = await fetch(WEB_APP_URL, {
                     method: 'POST',
                     body: JSON.stringify({ action: "getData" })
                 });
-                const data = await res.json();
+                
+                const textResult = await res.text(); // On récupère d'abord en texte brut
+                console.log("Réponse brute de Google :", textResult); // Regardez ça dans la console F12
+                
+                const data = JSON.parse(textResult); // On transforme en JSON
                 
                 vList.innerHTML = ""; 
                 iList.innerHTML = "";
+                
+                if (!Array.isArray(data)) {
+                    console.error("Le résultat n'est pas une liste :", data);
+                    iList.innerHTML = "Erreur de format des données.";
+                    return;
+                }
                 
                 data.forEach(item => {
                     if (item.category === "Video") {
@@ -108,7 +117,7 @@
             } catch (err) {
                 vList.innerHTML = "Erreur de chargement.";
                 iList.innerHTML = "Erreur de chargement.";
-                console.error(err);
+                console.error("Erreur attrapée :", err);
             }
         }
 
