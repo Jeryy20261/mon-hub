@@ -60,17 +60,21 @@
             const username = document.getElementById('loginUser').value;
             const passwordHash = await hashPassword(document.getElementById('loginPass').value);
             
-            const res = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: "login", username, passwordHash })
-            });
-            const data = await res.json();
-            
-            if (data.result === "success") {
-                localStorage.setItem('isLoggedIn', 'true');
-                location.reload();
-            } else {
-                document.getElementById('loginMsg').innerText = data.message;
+            try {
+                const res = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "login", username, passwordHash })
+                });
+                const data = await res.json();
+                
+                if (data.result === "success") {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    location.reload();
+                } else {
+                    document.getElementById('loginMsg').innerText = data.message;
+                }
+            } catch (err) {
+                document.getElementById('loginMsg').innerText = "Erreur de connexion au serveur.";
             }
         };
 
@@ -84,22 +88,26 @@
             const vList = document.getElementById('videoList');
             const iList = document.getElementById('imageList');
             try {
-                const res = await fetch(WEB_APP_URL);
+                // Utilisation de POST pour récupérer les données sans blocage CORS
+                const res = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "getData" })
+                });
                 const data = await res.json();
                 
-                // --- DEBUG ICI ---
-                console.log("Données reçues du Google Sheet :", data);
+                vList.innerHTML = ""; 
+                iList.innerHTML = "";
                 
-                vList.innerHTML = ""; iList.innerHTML = "";
                 data.forEach(item => {
                     if (item.category === "Video") {
                         vList.innerHTML += `<p>${item.name}</p>`;
                     } else if (item.category === "Image") {
-                        iList.innerHTML += `<div style="margin-bottom:10px;"><p>${item.name}</p><img src="${item.description}" style="width:100px;"></div>`;
+                        iList.innerHTML += `<div style="margin-bottom:10px;"><p>${item.name}</p><img src="${item.description}" style="width:150px; border-radius:4px;"></div>`;
                     }
                 });
             } catch (err) {
                 vList.innerHTML = "Erreur de chargement.";
+                iList.innerHTML = "Erreur de chargement.";
                 console.error(err);
             }
         }
