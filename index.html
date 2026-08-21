@@ -2,82 +2,47 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Hub Sécurisé</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f9f9f9; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, select { width: 100%; padding: 10px; margin: 8px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background: #007BFF; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; }
-        button:hover { background: #0056b3; }
-        .msg { margin-top: 10px; font-weight: bold; text-align: center; }
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
         #hubContent { display: none; }
-        nav button { width: auto; margin-right: 5px; background: #6c757d; }
-        nav button:hover { background: #5a6268; }
+        .page { display: none; }
+        .loading { color: #666; font-style: italic; }
     </style>
 </head>
 <body>
 
-    <!-- SECTION CONNEXION / INSCRIPTION -->
-    <div id="authSection">
-        <div class="card">
-            <h2>Connexion</h2>
-            <form id="loginForm">
-                <label>Identifiant :</label>
-                <input type="text" id="loginUser" required>
-                <label>Mot de passe :</label>
-                <input type="password" id="loginPass" required>
-                <button type="submit">Se connecter</button>
-            </form>
-            <div id="loginMsg" class="msg"></div>
-        </div>
-
-        <div class="card">
-            <h2>Inscription</h2>
-            <form id="registerForm">
-                <label>Choisir un identifiant :</label>
-                <input type="text" id="regUser" required>
-                <label>Choisir un mot de passe :</label>
-                <input type="password" id="regPass" required>
-                <button type="submit">S'inscrire</button>
-            </form>
-            <div id="regMsg" class="msg"></div>
-        </div>
+    <div id="authSection" class="card">
+        <h2>Connexion</h2>
+        <form id="loginForm">
+            <input type="text" id="loginUser" placeholder="Identifiant" required>
+            <input type="password" id="loginPass" placeholder="Mot de passe" required>
+            <button type="submit">Se connecter</button>
+        </form>
+        <div id="loginMsg"></div>
     </div>
 
-    <!-- SECTION DU HUB -->
     <div id="hubContent" class="card">
-        <h1>Bienvenue sur votre Hub !</h1>
+        <h1>Mon Hub</h1>
         <nav>
             <button onclick="showPage('home')">Accueil</button>
             <button onclick="showPage('videos')">Vidéos</button>
             <button onclick="showPage('images')">Images</button>
         </nav>
         <hr>
-
-        <div id="home" class="page">
-            <h3>Accueil</h3>
-            <p>Sélectionnez une catégorie ci-dessus.</p>
-        </div>
-
-        <div id="videos" class="page" style="display:none;">
-            <h3>Section Vidéos</h3>
-            <div id="videoList">Chargement des vidéos...</div>
-        </div>
-
-        <div id="images" class="page" style="display:none;">
-            <h3>Section Images</h3>
-            <div id="imageList">Chargement des images...</div>
-        </div>
-
-        <br><hr>
-        <button id="logoutBtn" style="background: #dc3545;">Se déconnecter</button>
+        <div id="home" class="page" style="display:block;"><h3>Accueil</h3><p>Bienvenue.</p></div>
+        <div id="videos" class="page"><h3>Vidéos</h3><div id="videoList" class="loading">Chargement...</div></div>
+        <div id="images" class="page"><h3>Images</h3><div id="imageList" class="loading">Chargement...</div></div>
+        <hr>
+        <button onclick="logout()" style="background:red;">Se déconnecter</button>
     </div>
 
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwljH1v8_0W6sr-Vxo5dmlVd0ua-2R2ajyPMK1XdqbD-wLbC_xJMWbtkkjvwpz-lTTs/exec";
 
-        // Vérification automatique au chargement
         window.onload = () => {
             if (localStorage.getItem('isLoggedIn') === 'true') {
                 document.getElementById('authSection').style.display = 'none';
@@ -85,93 +50,64 @@
             }
         };
 
-        async function hashPassword(password) {
-            const msgBuffer = new TextEncoder().encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        async function hashPassword(p) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // Inscription
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('regUser').value;
-            const rawPass = document.getElementById('regPass').value;
-            const msgDiv = document.getElementById('regMsg');
-            msgDiv.innerText = "Traitement en cours...";
-            const passwordHash = await hashPassword(rawPass);
-
-            try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: "register", username, passwordHash })
-                });
-                const result = await response.json();
-                msgDiv.style.color = result.result === "success" ? "green" : "red";
-                msgDiv.innerText = result.message;
-                if(result.result === "success") document.getElementById('registerForm').reset();
-            } catch (err) { msgDiv.innerText = "Erreur de connexion."; }
-        });
-
-        // Connexion
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             const username = document.getElementById('loginUser').value;
-            const rawPass = document.getElementById('loginPass').value;
-            const msgDiv = document.getElementById('loginMsg');
-            const passwordHash = await hashPassword(rawPass);
+            const passwordHash = await hashPassword(document.getElementById('loginPass').value);
+            
+            const res = await fetch(WEB_APP_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "login", username, passwordHash })
+            });
+            const data = await res.json();
+            
+            if (data.result === "success") {
+                localStorage.setItem('isLoggedIn', 'true');
+                location.reload();
+            } else {
+                document.getElementById('loginMsg').innerText = data.message;
+            }
+        };
 
-            try {
-                const response = await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: "login", username, passwordHash })
-                });
-                const result = await response.json();
-                
-                if (result.result === "success") {
-                    localStorage.setItem('isLoggedIn', 'true'); // Persistance
-                    document.getElementById('authSection').style.display = 'none';
-                    document.getElementById('hubContent').style.display = 'block';
-                } else {
-                    msgDiv.innerText = result.message;
-                }
-            } catch (err) { msgDiv.innerText = "Erreur serveur."; }
-        });
-
-        function showPage(pageId) {
+        function showPage(id) {
             document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-            document.getElementById(pageId).style.display = 'block';
-            if(pageId === 'videos' || pageId === 'images') loadHubData();
+            document.getElementById(id).style.display = 'block';
+            if(id === 'videos' || id === 'images') loadHubData();
         }
 
         async function loadHubData() {
+            const vList = document.getElementById('videoList');
+            const iList = document.getElementById('imageList');
             try {
-                const response = await fetch(WEB_APP_URL);
-                const data = await response.json();
-                const videoList = document.getElementById('videoList');
-                const imageList = document.getElementById('imageList');
-                videoList.innerHTML = ""; imageList.innerHTML = "";
-
+                const res = await fetch(WEB_APP_URL);
+                const data = await res.json();
+                
+                // --- DEBUG ICI ---
+                console.log("Données reçues du Google Sheet :", data);
+                
+                vList.innerHTML = ""; iList.innerHTML = "";
                 data.forEach(item => {
                     if (item.category === "Video") {
-                        if (item.description.includes('/d/')) {
-                            let videoId = item.description.split('/d/')[1].split('/')[0];
-                            videoList.innerHTML += `<div style="margin-bottom:20px;"><p><b>${item.name}</b></p><iframe src="https://drive.google.com/file/d/${videoId}/preview" width="100%" height="300"></iframe></div>`;
-                        } else {
-                            videoList.innerHTML += `<div style="margin-bottom:20px;"><p><b>${item.name}</b></p><a href="${item.description}" target="_blank">Voir la vidéo</a></div>`;
-                        }
+                        vList.innerHTML += `<p>${item.name}</p>`;
                     } else if (item.category === "Image") {
-                        imageList.innerHTML += `<div style="margin-bottom:20px;"><p><b>${item.name}</b></p><img src="${item.description}" style="width:100%; border-radius:4px;"></div>`;
+                        iList.innerHTML += `<div style="margin-bottom:10px;"><p>${item.name}</p><img src="${item.description}" style="width:100px;"></div>`;
                     }
                 });
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                vList.innerHTML = "Erreur de chargement.";
+                console.error(err);
+            }
         }
 
-        // Déconnexion
-        document.getElementById('logoutBtn').addEventListener('click', () => {
+        function logout() {
             localStorage.removeItem('isLoggedIn');
             location.reload();
-        });
+        }
     </script>
 </body>
 </html>
