@@ -45,11 +45,9 @@
         </div>
     </div>
 
-    <!-- SECTION DU HUB (Affichée après connexion validée) -->
+    <!-- SECTION DU HUB -->
     <div id="hubContent" class="card">
         <h1>Bienvenue sur votre Hub !</h1>
-        
-        <!-- Menu de navigation dynamique -->
         <nav>
             <button onclick="showPage('home')">Accueil</button>
             <button onclick="showPage('videos')">Vidéos</button>
@@ -57,10 +55,9 @@
         </nav>
         <hr>
 
-        <!-- Les différentes "pages" de votre Hub -->
         <div id="home" class="page">
             <h3>Accueil</h3>
-            <p>Sélectionnez une catégorie dans le menu ci-dessus pour naviguer sans recharger la page.</p>
+            <p>Sélectionnez une catégorie ci-dessus.</p>
         </div>
 
         <div id="videos" class="page" style="display:none;">
@@ -78,10 +75,16 @@
     </div>
 
     <script>
-        // METTEZ VOTRE URL DE WEB APP GOOGLE APPS SCRIPT ICI :
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwljH1v8_0W6sr-Vxo5dmlVd0ua-2R2ajyPMK1XdqbD-wLbC_xJMWbtkkjvwpz-lTTs/exec";
 
-        // Fonction pour hacher le mot de passe en SHA-256
+        // Vérification automatique au chargement
+        window.onload = () => {
+            if (localStorage.getItem('isLoggedIn') === 'true') {
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('hubContent').style.display = 'block';
+            }
+        };
+
         async function hashPassword(password) {
             const msgBuffer = new TextEncoder().encode(password);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -95,8 +98,6 @@
             const username = document.getElementById('regUser').value;
             const rawPass = document.getElementById('regPass').value;
             const msgDiv = document.getElementById('regMsg');
-
-            msgDiv.style.color = "#666";
             msgDiv.innerText = "Traitement en cours...";
             const passwordHash = await hashPassword(rawPass);
 
@@ -109,10 +110,7 @@
                 msgDiv.style.color = result.result === "success" ? "green" : "red";
                 msgDiv.innerText = result.message;
                 if(result.result === "success") document.getElementById('registerForm').reset();
-            } catch (err) {
-                msgDiv.style.color = "red";
-                msgDiv.innerText = "Erreur de connexion au serveur.";
-            }
+            } catch (err) { msgDiv.innerText = "Erreur de connexion."; }
         });
 
         // Connexion
@@ -121,9 +119,6 @@
             const username = document.getElementById('loginUser').value;
             const rawPass = document.getElementById('loginPass').value;
             const msgDiv = document.getElementById('loginMsg');
-
-            msgDiv.style.color = "#666";
-            msgDiv.innerText = "Vérification...";
             const passwordHash = await hashPassword(rawPass);
 
             try {
@@ -134,76 +129,48 @@
                 const result = await response.json();
                 
                 if (result.result === "success") {
+                    localStorage.setItem('isLoggedIn', 'true'); // Persistance
                     document.getElementById('authSection').style.display = 'none';
                     document.getElementById('hubContent').style.display = 'block';
                 } else {
-                    msgDiv.style.color = "red";
                     msgDiv.innerText = result.message;
                 }
-            } catch (err) {
-                msgDiv.style.color = "red";
-                msgDiv.innerText = "Erreur de connexion au serveur.";
-            }
+            } catch (err) { msgDiv.innerText = "Erreur serveur."; }
         });
 
-        // Navigation dynamique entre les pages sans recharger
         function showPage(pageId) {
             document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
             document.getElementById(pageId).style.display = 'block';
-            
-            // Si on clique sur Vidéos ou Images, on charge les données du Sheet
-            if(pageId === 'videos' || pageId === 'images') {
-                loadHubData();
-            }
+            if(pageId === 'videos' || pageId === 'images') loadHubData();
         }
 
-        // Chargement des données du Google Sheet
         async function loadHubData() {
             try {
                 const response = await fetch(WEB_APP_URL);
                 const data = await response.json();
-                
                 const videoList = document.getElementById('videoList');
                 const imageList = document.getElementById('imageList');
-                
-                videoList.innerHTML = "";
-                imageList.innerHTML = "";
+                videoList.innerHTML = ""; imageList.innerHTML = "";
 
                 data.forEach(item => {
                     if (item.category === "Video") {
                         if (item.description.includes('/d/')) {
                             let videoId = item.description.split('/d/')[1].split('/')[0];
-                            videoList.innerHTML += `
-                                <div style="margin-bottom:20px;">
-                                    <p><b>${item.name}</b></p>
-                                    <iframe src="https://drive.google.com/file/d/${videoId}/preview" width="100%" height="300" allow="autoplay"></iframe>
-                                </div>`;
+                            videoList.innerHTML += `<div style="margin-bottom:20px;"><p><b>${item.name}</b></p><iframe src="https://drive.google.com/file/d/${videoId}/preview" width="100%" height="300"></iframe></div>`;
                         } else {
-                            videoList.innerHTML += `
-                                <div style="margin-bottom:20px;">
-                                    <p><b>${item.name}</b></p>
-                                    <a href="${item.description}" target="_blank">Voir la vidéo</a>
-                                </div>`;
+                            videoList.innerHTML += `<div style="margin-bottom:20px;"><p><b>${item.name}</b></p><a href="${item.description}" target="_blank">Voir la vidéo</a></div>`;
                         }
                     } else if (item.category === "Image") {
-                        imageList.innerHTML += `
-                            <div style="margin-bottom:20px;">
-                                <p><b>${item.name}</b></p>
-                                <img src="${item.description}" style="width:100%; border-radius:4px;">
-                            </div>`;
+                        imageList.innerHTML += `<div style="margin-bottom:20px;"><p><b>${item.name}</b></p><img src="${item.description}" style="width:100%; border-radius:4px;"></div>`;
                     }
                 });
-            } catch (err) {
-                console.error("Erreur de chargement des données:", err);
-            }
+            } catch (err) { console.error(err); }
         }
 
         // Déconnexion
         document.getElementById('logoutBtn').addEventListener('click', () => {
-            document.getElementById('hubContent').style.display = 'none';
-            document.getElementById('authSection').style.display = 'block';
-            document.getElementById('loginForm').reset();
-            document.getElementById('loginMsg').innerText = "";
+            localStorage.removeItem('isLoggedIn');
+            location.reload();
         });
     </script>
 </body>
